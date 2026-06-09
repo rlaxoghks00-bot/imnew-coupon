@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아임뉴댄스 쿠폰 관리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: #F5F4F0;
+    color: #1a1a1a;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .app { max-width: 900px; margin: 0 auto; }
+
+  /* 상단 */
+  .top-bar {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .top-title {
+    font-size: 18px; font-weight: 700; color: #111;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .top-title span { font-size: 20px; }
+
+  .add-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 18px; border-radius: 8px;
+    background: #2C2416; color: #C4974A;
+    font-size: 14px; font-weight: 700;
+    border: none; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .add-btn:hover { opacity: 0.85; }
+
+  /* 통계 요약 */
+  .summary {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin-bottom: 20px;
+  }
+  .sum-card {
+    background: #fff; border-radius: 12px;
+    padding: 16px 20px; border: 1px solid #E8E4DC;
+    text-align: center;
+  }
+  .sum-label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .sum-val { font-size: 26px; font-weight: 900; color: #2C2416; }
+  .sum-val.warn { color: #D97706; }
+
+  /* 카드 그리드 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  .student-card {
+    background: #fff; border-radius: 14px;
+    padding: 20px; border: 1.5px solid #E8E4DC;
+    display: flex; flex-direction: column; gap: 14px;
+    transition: box-shadow 0.2s;
+  }
+  .student-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
+  .student-card.flash { box-shadow: 0 0 0 3px #C4974A; }
+
+  /* 카드 헤더 */
+  .card-header { display: flex; align-items: center; justify-content: space-between; }
+  .card-name { font-size: 17px; font-weight: 800; color: #1a1a1a; }
+  .card-delete {
+    background: none; border: none; cursor: pointer;
+    color: #ccc; font-size: 18px; padding: 2px;
+    transition: color 0.15s;
+  }
+  .card-delete:hover { color: #ef4444; }
+
+  /* 쿠폰 타입 */
+  .coupon-type {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 100px;
+    font-size: 12px; font-weight: 700;
+  }
+  .type-5  { background: #FEF3C7; color: #92400E; }
+  .type-10 { background: #DCFCE7; color: #14532D; }
+
+  /* 도트 진행바 */
+  .dots-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #F0EBE0; border: 1.5px solid #E0D8CC;
+    transition: all 0.2s;
+  }
+  .dot.used-5  { background: #D97706; border-color: #D97706; }
+  .dot.used-10 { background: #16A34A; border-color: #16A34A; }
+
+  /* 잔여 텍스트 */
+  .remain-row {
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .remain-num { font-size: 32px; font-weight: 900; color: #2C2416; line-height: 1; }
+  .remain-label { font-size: 13px; color: #999; }
+  .remain-num.danger { color: #ef4444; }
+
+  /* 차감 버튼 */
+  .deduct-btn {
+    width: 100%; padding: 11px;
+    font-size: 15px; font-weight: 700;
+    border-radius: 10px; cursor: pointer;
+    border: 1.5px solid #E8E4DC;
+    background: #F5F4F0; color: #2C2416;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: all 0.15s;
+  }
+  .deduct-btn:hover:not(:disabled) { background: #2C2416; color: #C4974A; border-color: #2C2416; }
+  .deduct-btn:active:not(:disabled) { transform: scale(0.97); }
+  .deduct-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .deduct-btn.done { background: #F0FDF4; color: #16A34A; border-color: #86EFAC; }
+
+  /* 마지막 수강 */
+  .last-visit { font-size: 12px; color: #bbb; text-align: center; min-height: 16px; }
+
+  /* 빈 상태 */
+  .empty {
+    grid-column: 1/-1;
+    padding: 60px 20px; text-align: center;
+    color: #bbb; font-size: 15px;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* 모달 */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; backdrop-filter: blur(2px);
+  }
+  .modal {
+    background: #fff; border-radius: 16px;
+    padding: 28px; width: 300px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .modal-title { font-size: 17px; font-weight: 800; color: #111; }
+  .modal input, .modal select {
+    width: 100%; font-size: 15px; padding: 11px 14px;
+    border-radius: 10px; border: 1.5px solid #E8E4DC;
+    background: #F5F4F0; color: #111;
+    font-family: inherit; outline: none;
+  }
+  .modal input:focus, .modal select:focus { border-color: #C4974A; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button {
+    flex: 1; padding: 11px; font-size: 15px; font-weight: 700;
+    border-radius: 10px; cursor: pointer; font-family: inherit;
+    border: 1.5px solid #E8E4DC;
+  }
+  .btn-confirm { background: #2C2416; color: #C4974A; border-color: #2C2416; }
+  .btn-cancel  { background: #F5F4F0; color: #666; }
+
+  /* 리셋 버튼 */
+  .reset-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px;
+    background: none; color: #bbb; border: 1px solid #E8E4DC;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .reset-btn:hover { color: #ef4444; border-color: #ef4444; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top-bar">
+    <div class="top-title">
+      <span>🎟️</span> 쿠폰 차감 관리
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="reset-btn" onclick="resetAll()">초기화</button>
+      <button class="add-btn" onclick="openModal()">+ 수강생 추가</button>
+    </div>
+  </div>
+
+  <!-- 통계 요약 -->
+  <div class="summary" id="summary"></div>
+
+  <!-- 카드 그리드 -->
+  <div class="grid" id="grid"></div>
+
+</div>
+
+<!-- 모달 -->
+<div class="modal-overlay" id="modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-title">수강생 등록</div>
+    <input type="text" id="m-name" placeholder="이름을 입력하세요" />
+    <select id="m-type">
+      <option value="5">5회 쿠폰</option>
+      <option value="10">10회 쿠폰</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-confirm" onclick="addStudent()">등록</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = 'imnew_coupon_v3';
+
+function load() {
+  try {
+    const d = localStorage.getItem(KEY);
+    return d ? JSON.parse(d) : defaultData();
+  } catch { return defaultData(); }
+}
+function defaultData() {
+  return [
+    { id: 1, name: '김지수', total: 10, used: 3, history: [] },
+    { id: 2, name: '박민준', total: 5,  used: 1, history: [] },
+    { id: 3, name: '이서연', total: 10, used: 7, history: [] },
+    { id: 4, name: '최현우', total: 5,  used: 5, history: [] },
+  ];
+}
+function save(data) {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+}
+
+function fmt(iso) {
+  const d = new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function renderSummary(data) {
+  const total = data.length;
+  const active = data.filter(s => s.used < s.total).length;
+  const expired = data.filter(s => s.used >= s.total).length;
+  document.getElementById('summary').innerHTML = `
+    <div class="sum-card">
+      <div class="sum-label">전체 수강생</div>
+      <div class="sum-val">${total}명</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">이용 가능</div>
+      <div class="sum-val">${active}명</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">쿠폰 소진</div>
+      <div class="sum-val warn">${expired}명</div>
+    </div>`;
+}
+
+function render() {
+  const data = load();
+  renderSummary(data);
+  const grid = document.getElementById('grid');
+  if (!data.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">🎟️</div>수강생을 추가해 주세요</div>`;
+    return;
+  }
+  grid.innerHTML = data.map(s => {
+    const rem = s.total - s.used;
+    const typeClass = s.total === 5 ? 'type-5' : 'type-10';
+    const dotUsed = s.total === 5 ? 'used-5' : 'used-10';
+    const dots = Array.from({length: s.total}, (_, i) =>
+      `<div class="dot ${i < s.used ? dotUsed : ''}"></div>`
+    ).join('');
+    const isDone = rem <= 0;
+    const last = s.history.length ? `마지막 수강: ${fmt(s.history[s.history.length-1])}` : '수강 기록 없음';
+    return `
+    <div class="student-card" id="card-${s.id}">
+      <div class="card-header">
+        <span class="card-name">${s.name}</span>
+        <button class="card-delete" onclick="del(${s.id})" title="삭제">✕</button>
+      </div>
+      <div>
+        <span class="coupon-type ${typeClass}">${s.total}회 쿠폰</span>
+      </div>
+      <div class="remain-row">
+        <span class="remain-num ${rem <= 1 && !isDone ? 'danger' : ''}">${rem}</span>
+        <span class="remain-label">회 남음</span>
+      </div>
+      <div class="dots-wrap">${dots}</div>
+      <button
+        class="deduct-btn ${isDone ? 'done' : ''}"
+        onclick="deduct(${s.id})"
+        ${isDone ? 'disabled' : ''}>
+        ${isDone ? '✅ 쿠폰 소진' : '－ 1회 차감'}
+      </button>
+      <div class="last-visit">${last}</div>
+    </div>`;
+  }).join('');
+}
+
+function deduct(id) {
+  const data = load();
+  const s = data.find(x => x.id === id);
+  if (!s || s.used >= s.total) return;
+  s.used++;
+  s.history.push(new Date().toISOString());
+  save(data);
+  render();
+  // 깜빡임 효과
+  const card = document.getElementById('card-' + id);
+  if (card) {
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 500);
+  }
+}
+
+function del(id) {
+  if (!confirm('이 수강생을 삭제할까요?')) return;
+  save(load().filter(x => x.id !== id));
+  render();
+}
+
+function resetAll() {
+  if (!confirm('모든 수강생 데이터를 초기화할까요?\n(삭제된 데이터는 복구되지 않습니다)')) return;
+  localStorage.removeItem(KEY);
+  render();
+}
+
+let nextId = Date.now();
+function openModal() {
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('m-name').focus();
+}
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+  document.getElementById('m-name').value = '';
+}
+function addStudent() {
+  const name = document.getElementById('m-name').value.trim();
+  const total = parseInt(document.getElementById('m-type').value);
+  if (!name) { alert('이름을 입력해 주세요'); return; }
+  const data = load();
+  data.push({ id: ++nextId, name, total, used: 0, history: [] });
+  save(data);
+  closeModal();
+  render();
+}
+
+document.getElementById('m-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addStudent();
+});
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+render();
+</script>
+</body>
+</html>
