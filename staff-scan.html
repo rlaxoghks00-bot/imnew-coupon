@@ -97,7 +97,8 @@ body{background:#0e0e14;color:#fff;font-family:'Apple SD Gothic Neo',Pretendard,
 <div class="controls">
   <button class="btn-cam" id="btn-cam" onclick="toggleCamera()">📷 카메라 시작</button>
   <div class="manual-wrap">
-    <input class="manual-input" id="manual-input" placeholder="QR 내용 직접 입력" onkeydown="if(event.key==='Enter')processManual()">
+    <input class="manual-input" id="manual-zone" placeholder="행 (A)" maxlength="2" style="max-width:70px;text-align:center;font-weight:700;font-size:16px;text-transform:uppercase">
+    <input class="manual-input" id="manual-num" placeholder="번호 (23)" type="number" min="1" max="99" onkeydown="if(event.key==='Enter')processManual()">
     <button class="btn-manual" onclick="processManual()">입력</button>
   </div>
   <button class="btn-reset" onclick="resetAll()">카운터 초기화</button>
@@ -10258,10 +10259,13 @@ function processQR(data){
 }
 
 function processManual(){
-  var val=document.getElementById('manual-input').value.trim();
-  if(!val)return;
-  processQR(val);
-  document.getElementById('manual-input').value='';
+  var zone=document.getElementById('manual-zone').value.trim().toUpperCase();
+  var num=document.getElementById('manual-num').value.trim();
+  if(!zone||!num){alert('행과 번호를 모두 입력하세요.');return;}
+  processQR('AUDIENCE:'+zone+'-'+num);
+  document.getElementById('manual-zone').value='';
+  document.getElementById('manual-num').value='';
+  document.getElementById('manual-zone').focus();
 }
 
 async function toggleCamera(){
@@ -10343,6 +10347,7 @@ function resetAll(){
   showResult('📷','idle','초기화 완료','QR 코드를 스캔하거나 직접 입력하세요');
 }
 
+document.getElementById('manual-zone').addEventListener('input',function(){this.value=this.value.toUpperCase();});
 document.addEventListener('visibilitychange',function(){if(document.hidden&&scanning)stopCamera();});
 </script>
 </body>
