@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>IMNEWDAY 2026 — 입장 스캔</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0e0e14;color:#fff;font-family:'Apple SD Gothic Neo',Pretendard,-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+
+/* 상단 카운터 */
+.header{background:#111;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(255,255,255,.1)}
+.logo{font-size:13px;font-weight:800;letter-spacing:.5px;color:rgba(255,255,255,.6)}
+.counters{display:flex;gap:12px}
+.cnt{text-align:center}
+.cnt-num{font-size:22px;font-weight:900;line-height:1}
+.cnt-lbl{font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:1px}
+.cnt.audience .cnt-num{color:#93C5FD}
+.cnt.performer .cnt-num{color:#F97316}
+.cnt.total .cnt-num{color:#fff}
+.divider{width:1px;background:rgba(255,255,255,.1);margin:2px 0}
+
+/* 결과 표시 */
+.result-bar{padding:12px 16px;min-height:60px;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.06)}
+.result-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.result-icon.ok{background:rgba(34,197,94,.2)}
+.result-icon.warn{background:rgba(234,179,8,.2)}
+.result-icon.err{background:rgba(239,68,68,.2)}
+.result-icon.idle{background:rgba(255,255,255,.05)}
+.result-text{flex:1;min-width:0}
+.result-main{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:2px}
+
+/* 카메라 영역 */
+.cam-wrap{flex:1;position:relative;background:#000;overflow:hidden;min-height:300px}
+#video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;pointer-events:none}
+.scan-frame::before,.scan-frame::after{content:'';position:absolute;width:30px;height:30px;border-color:#F97316;border-style:solid}
+.scan-frame::before{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.scan-frame::after{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-corner{position:absolute;width:30px;height:30px;border-color:#F97316;border-style:solid}
+.scan-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.scan-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.scan-line{position:absolute;left:10px;right:10px;height:2px;background:linear-gradient(90deg,transparent,#F97316,transparent);animation:scan 2s linear infinite;top:10px}
+@keyframes scan{0%{top:10px}100%{top:calc(100% - 12px)}}
+.cam-status{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.7);font-size:14px;color:rgba(255,255,255,.7)}
+.cam-status .icon{font-size:40px}
+
+/* 하단 컨트롤 */
+.controls{padding:12px 16px;background:#111;border-top:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:10px}
+.btn-cam{width:100%;padding:14px;background:#F97316;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit}
+.btn-cam:active{opacity:.85}
+.btn-cam.stop{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+
+.manual-wrap{display:flex;gap:8px}
+.manual-input{flex:1;padding:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:14px;font-family:inherit;outline:none}
+.manual-input:focus{border-color:rgba(255,255,255,.35)}
+.btn-manual{padding:12px 16px;background:rgba(255,255,255,.1);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+.btn-reset{width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;font-family:inherit}
+
+/* 히스토리 */
+.history{padding:8px 16px 0;overflow-y:auto;max-height:200px}
+.hist-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}
+.hist-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;flex-shrink:0}
+.hist-badge.audience{background:rgba(147,197,253,.2);color:#93C5FD}
+.hist-badge.performer{background:rgba(249,115,22,.2);color:#F97316}
+.hist-name{flex:1;color:rgba(255,255,255,.75)}
+.hist-time{color:rgba(255,255,255,.3)}
+</style>
+</head>
+<body>
+
+<!-- 상단 카운터 -->
+<div class="header">
+  <div class="logo">IMNEWDAY 2026</div>
+  <div class="counters">
+    <div class="cnt audience"><div class="cnt-num" id="cnt-a">0</div><div class="cnt-lbl">관객</div></div>
+    <div class="divider"></div>
+    <div class="cnt performer"><div class="cnt-num" id="cnt-p">0</div><div class="cnt-lbl">참가자</div></div>
+    <div class="divider"></div>
+    <div class="cnt total"><div class="cnt-num" id="cnt-t">0</div><div class="cnt-lbl">합계</div></div>
+  </div>
+</div>
+
+<!-- 결과 -->
+<div class="result-bar">
+  <div class="result-icon idle" id="result-icon">📷</div>
+  <div class="result-text">
+    <div class="result-main" id="result-main">카메라를 시작하세요</div>
+    <div class="result-sub" id="result-sub">QR 코드를 스캔하거나 직접 입력하세요</div>
+  </div>
+</div>
+
+<!-- 카메라 -->
+<div class="cam-wrap" id="cam-wrap">
+  <video id="video" playsinline autoplay muted></video>
+  <div class="scan-frame">
+    <div class="scan-corner tr"></div>
+    <div class="scan-corner bl"></div>
+    <div class="scan-line"></div>
+  </div>
+  <div class="cam-status" id="cam-status">
+    <div class="icon">📷</div>
+    <div>카메라 시작 버튼을 누르세요</div>
+  </div>
+  <canvas id="canvas" style="display:none"></canvas>
+</div>
+
+<!-- 히스토리 -->
+<div class="history" id="history"></div>
+
+<!-- 컨트롤 -->
+<div class="controls">
+  <button class="btn-cam" id="btn-cam" onclick="toggleCamera()">📷 카메라 시작</button>
+  <div class="manual-wrap">
+    <input class="manual-input" id="manual-input" placeholder="QR 내용 직접 입력 (예: AUDIENCE:A-23)" 
+      onkeydown="if(event.key==='Enter')processManual()">
+    <button class="btn-manual" onclick="processManual()">입력</button>
+  </div>
+  <button class="btn-reset" onclick="resetAll()">카운터 초기화</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+<script>
+var cntA = 0, cntP = 0;
+var scanning = false;
+var stream = null;
+var scanTimer = null;
+var lastScanned = '';
+var lastScannedTime = 0;
+
+function updateCounters() {
+  document.getElementById('cnt-a').textContent = cntA;
+  document.getElementById('cnt-p').textContent = cntP;
+  document.getElementById('cnt-t').textContent = cntA + cntP;
+}
+
+function showResult(icon, iconClass, main, sub) {
+  var el = document.getElementById('result-icon');
+  el.textContent = icon;
+  el.className = 'result-icon ' + iconClass;
+  document.getElementById('result-main').textContent = main;
+  document.getElementById('result-sub').textContent = sub;
+}
+
+function addHistory(type, text) {
+  var now = new Date();
+  var time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  var hist = document.getElementById('history');
+  var div = document.createElement('div');
+  div.className = 'hist-item';
+  div.innerHTML = '<span class="hist-badge ' + type + '">' + (type==='audience'?'관객':'참가자') + '</span>'
+    + '<span class="hist-name">' + esc(text) + '</span>'
+    + '<span class="hist-time">' + time + '</span>';
+  hist.insertBefore(div, hist.firstChild);
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function processQR(data) {
+  var now = Date.now();
+  // 동일 QR 중복 방지 (2초)
+  if (data === lastScanned && now - lastScannedTime < 2000) return;
+  lastScanned = data;
+  lastScannedTime = now;
+
+  if (data.startsWith('AUDIENCE:')) {
+    var seat = data.replace('AUDIENCE:', '');
+    cntA++;
+    updateCounters();
+    showResult('✅', 'ok', '관객 입장 · ' + seat, '관객 좌석: ' + seat);
+    addHistory('audience', '관객 · ' + seat);
+    vibrate();
+  } else if (data.startsWith('PERFORMER:')) {
+    var parts = data.replace('PERFORMER:', '').split(':');
+    var branch = parts[0] || '';
+    var name = parts[1] || '';
+    cntP++;
+    updateCounters();
+    showResult('🎭', 'ok', '참가자 입장 · ' + name, branch + '점 · ' + name);
+    addHistory('performer', name + ' (' + branch + '점)');
+    vibrate();
+  } else {
+    showResult('⚠️', 'warn', '알 수 없는 QR', data.substring(0, 40));
+  }
+}
+
+function vibrate() {
+  try { navigator.vibrate && navigator.vibrate(100); } catch(e) {}
+}
+
+function processManual() {
+  var val = document.getElementById('manual-input').value.trim();
+  if (!val) return;
+  processQR(val);
+  document.getElementById('manual-input').value = '';
+}
+
+async function toggleCamera() {
+  if (scanning) {
+    stopCamera();
+    return;
+  }
+  startCamera();
+}
+
+async function startCamera() {
+  var btn = document.getElementById('btn-cam');
+  var status = document.getElementById('cam-status');
+  status.innerHTML = '<div class="icon">⏳</div><div>카메라 권한 요청 중...</div>';
+  status.style.display = 'flex';
+
+  try {
+    // 후면 카메라 우선, 실패시 기본 카메라
+    var constraints = {
+      video: {
+        facingMode: {ideal: 'environment'},
+        width: {ideal: 1280},
+        height: {ideal: 720}
+      }
+    };
+    
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch(e) {
+      stream = await navigator.mediaDevices.getUserMedia({video: true});
+    }
+
+    var video = document.getElementById('video');
+    video.srcObject = stream;
+    await video.play();
+
+    status.style.display = 'none';
+    scanning = true;
+    btn.textContent = '⏹ 카메라 중지';
+    btn.className = 'btn-cam stop';
+    showResult('📷', 'idle', 'QR 코드를 스캔하세요', '카메라가 활성화되었습니다');
+
+    // jsQR로 스캔
+    if (window.jsQR) {
+      scanFrame();
+    } else {
+      // jsQR 없을 때 fallback
+      status.style.display = 'flex';
+      status.innerHTML = '<div class="icon">⚠️</div><div>QR 라이브러리 로드 실패<br>수동 입력을 사용하세요</div>';
+    }
+
+  } catch(err) {
+    var msg = '카메라를 시작할 수 없습니다';
+    if (err.name === 'NotAllowedError') msg = '카메라 권한이 거부되었습니다\n설정에서 카메라 권한을 허용해주세요';
+    else if (err.name === 'NotFoundError') msg = '카메라를 찾을 수 없습니다';
+    else if (err.name === 'NotReadableError') msg = '카메라가 다른 앱에서 사용 중입니다';
+    status.innerHTML = '<div class="icon">❌</div><div style="text-align:center;white-space:pre-line">' + msg + '</div>';
+    status.style.display = 'flex';
+    showResult('❌', 'err', '카메라 오류', err.name);
+  }
+}
+
+function scanFrame() {
+  if (!scanning) return;
+  var video = document.getElementById('video');
+  var canvas = document.getElementById('canvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+    if (code) {
+      processQR(code.data);
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+function stopCamera() {
+  scanning = false;
+  if (stream) {
+    stream.getTracks().forEach(function(t){ t.stop(); });
+    stream = null;
+  }
+  var video = document.getElementById('video');
+  video.srcObject = null;
+  var status = document.getElementById('cam-status');
+  status.innerHTML = '<div class="icon">📷</div><div>카메라 중지됨</div>';
+  status.style.display = 'flex';
+  var btn = document.getElementById('btn-cam');
+  btn.textContent = '📷 카메라 시작';
+  btn.className = 'btn-cam';
+  showResult('📷', 'idle', '카메라가 중지되었습니다', '다시 시작하려면 버튼을 누르세요');
+}
+
+function resetAll() {
+  if (!confirm('카운터를 초기화하시겠습니까?')) return;
+  cntA = 0; cntP = 0;
+  updateCounters();
+  document.getElementById('history').innerHTML = '';
+  showResult('📷', 'idle', '초기화 완료', 'QR 코드를 스캔하거나 직접 입력하세요');
+}
+
+// 페이지 숨김 시 카메라 중지
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && scanning) stopCamera();
+});
+</script>
+</body>
+</html>
