@@ -10248,7 +10248,9 @@ function processQR(data){
     try{navigator.vibrate&&navigator.vibrate(100);}catch(e){}
   } else if(data.startsWith('PERFORMER:')){
     var parts=data.replace('PERFORMER:','').split(':');
-    var branch=parts[0]||'',name=parts[1]||'';
+    var branch='',name='';
+    try{ branch=decodeURIComponent(parts[0]||''); }catch(e){ branch=parts[0]||''; }
+    try{ name=decodeURIComponent(parts[1]||''); }catch(e){ name=parts[1]||''; }
     cntP++; updateCounters();
     showResult('🎭','ok','참가자 입장 · '+name,branch+'점 · '+name);
     addHistory('performer',name+' ('+branch+'점)');
